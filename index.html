@@ -877,7 +877,6 @@
       text-transform: uppercase;
       cursor: pointer;
       transition: background .22s;
-      margin-top: .3rem;
     }
     .form-btn:hover { background: #c00009; }
     .form-privacy {
@@ -1176,6 +1175,42 @@
     .cc-list li:hover, .cc-list li.cc-active { background: rgba(232,0,10,.15); color: var(--white); }
     .cc-list li .cc-item-dial { margin-left: auto; color: var(--muted); font-size: .82rem; }
     .phone-wrap > input { flex: 1; min-width: 0; }
+
+    /* ─── Aplicar Ahora red glow button ─────────────────────── */
+    .form-btn-wrap {
+      position: relative;
+      border-radius: 8px;
+      isolation: isolate;
+      margin-top: .3rem;
+    }
+    .form-btn-wrap::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 9px;
+      background: var(--red);
+      z-index: -1;
+    }
+    .form-btn-wrap::after {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 14px;
+      background: var(--red);
+      filter: blur(18px);
+      z-index: -2;
+      animation: red-pulse 1.8s ease-in-out infinite;
+    }
+    .form-btn-wrap .form-btn {
+      position: relative;
+      z-index: 1;
+      margin-top: 0;
+      border-radius: 6px;
+    }
+    @keyframes red-pulse {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50%       { opacity: 0.85; transform: scale(1.03); }
+    }
 
     /* ─── iOS input zoom fix ──────────────────────────────────── */
     @media (max-width: 768px) {
@@ -1515,7 +1550,9 @@
                 </select>
               </div>
 
-              <button type="submit" class="form-btn">Aplicar ahora →</button>
+              <div class="form-btn-wrap">
+                <button type="submit" class="form-btn">Aplicar ahora →</button>
+              </div>
               <p class="form-privacy">🔒 Tu información es privada. Sin spam. Solo te contactamos para hablar de tu negocio.</p>
             </form>
 
