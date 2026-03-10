@@ -1132,9 +1132,56 @@
       .footer-nav a { font-size: .65rem; }
     }
 
+    /* ─── Country code picker ─────────────────────────────────── */
+    .phone-wrap { display: flex; gap: .5rem; align-items: flex-start; }
+    .cc-select { position: relative; flex-shrink: 0; }
+    .cc-btn {
+      display: flex; align-items: center; gap: .35rem;
+      height: 48px; padding: 0 .75rem;
+      background: #111; border: 1px solid rgba(255,255,255,.1);
+      border-radius: 6px; color: var(--white); cursor: pointer;
+      font-family: var(--cond); font-size: .95rem; letter-spacing: .03em;
+      white-space: nowrap; transition: border-color .2s;
+    }
+    .cc-btn:hover, .cc-select.open .cc-btn { border-color: var(--red); }
+    .cc-btn svg { opacity: .5; transition: transform .2s; }
+    .cc-select.open .cc-btn svg { transform: rotate(180deg); }
+    .cc-drop {
+      position: absolute; top: calc(100% + 6px); left: 0;
+      width: 260px; background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,.12); border-radius: 8px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.7); z-index: 999;
+      display: none; overflow: hidden;
+    }
+    .cc-select.open .cc-drop { display: block; }
+    .cc-search {
+      width: 100%; box-sizing: border-box;
+      padding: .65rem .85rem; background: #111;
+      border: none; border-bottom: 1px solid rgba(255,255,255,.08);
+      color: var(--white); font-family: var(--body); font-size: .88rem;
+      outline: none;
+    }
+    .cc-search::placeholder { color: #444; }
+    .cc-list {
+      list-style: none; margin: 0; padding: 0;
+      max-height: 220px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: #333 transparent;
+    }
+    .cc-list li {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .55rem .85rem; cursor: pointer;
+      font-family: var(--body); font-size: .87rem; color: #ccc;
+      transition: background .15s;
+    }
+    .cc-list li:hover, .cc-list li.cc-active { background: rgba(232,0,10,.15); color: var(--white); }
+    .cc-list li .cc-item-dial { margin-left: auto; color: var(--muted); font-size: .82rem; }
+    .phone-wrap > input { flex: 1; min-width: 0; }
+
     /* ─── iOS input zoom fix ──────────────────────────────────── */
     @media (max-width: 768px) {
       .fg input, .fg select { font-size: 16px; }
+      .cc-btn { font-size: 16px; }
+      .cc-search { font-size: 16px; }
     }
 
     /* ─── BODY LOCK when menu open ────────────────────────────── */
@@ -1437,8 +1484,22 @@
                 <input type="email" id="em" name="email" placeholder="tu@correo.com" required />
               </div>
               <div class="fg">
-                <label for="wp">WhatsApp (con código de país)</label>
-                <input type="tel" id="wp" name="whatsapp" placeholder="+1 (555) 000-0000" required />
+                <label>WhatsApp</label>
+                <div class="phone-wrap">
+                  <div class="cc-select" id="ccSelect">
+                    <button type="button" class="cc-btn" id="ccBtn" aria-haspopup="listbox" aria-expanded="false">
+                      <span class="cc-flag" id="ccFlag">🇺🇸</span>
+                      <span class="cc-code" id="ccCode">+1</span>
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <div class="cc-drop" id="ccDrop" role="listbox">
+                      <input type="text" class="cc-search" id="ccSearch" placeholder="Buscar país..." autocomplete="off" />
+                      <ul class="cc-list" id="ccList"></ul>
+                    </div>
+                  </div>
+                  <input type="tel" id="wp" placeholder="(555) 000-0000" required />
+                </div>
+                <input type="hidden" name="whatsapp" id="wpFull" />
               </div>
               <div class="fg">
                 <label for="ind">¿En qué industria trabajas?</label>
@@ -1529,11 +1590,137 @@
     }, { passive: true });
 
     // Form submit → Formspree
+    // ── Country code picker ──────────────────────────────────────
+    const COUNTRIES = [
+      {n:'Afghanistan',f:'🇦🇫',d:'+93'},{n:'Albania',f:'🇦🇱',d:'+355'},{n:'Algeria',f:'🇩🇿',d:'+213'},
+      {n:'Andorra',f:'🇦🇩',d:'+376'},{n:'Angola',f:'🇦🇴',d:'+244'},{n:'Argentina',f:'🇦🇷',d:'+54'},
+      {n:'Armenia',f:'🇦🇲',d:'+374'},{n:'Australia',f:'🇦🇺',d:'+61'},{n:'Austria',f:'🇦🇹',d:'+43'},
+      {n:'Azerbaijan',f:'🇦🇿',d:'+994'},{n:'Bahamas',f:'🇧🇸',d:'+1-242'},{n:'Bahrain',f:'🇧🇭',d:'+973'},
+      {n:'Bangladesh',f:'🇧🇩',d:'+880'},{n:'Belarus',f:'🇧🇾',d:'+375'},{n:'Belgium',f:'🇧🇪',d:'+32'},
+      {n:'Belize',f:'🇧🇿',d:'+501'},{n:'Benin',f:'🇧🇯',d:'+229'},{n:'Bhutan',f:'🇧🇹',d:'+975'},
+      {n:'Bolivia',f:'🇧🇴',d:'+591'},{n:'Bosnia',f:'🇧🇦',d:'+387'},{n:'Botswana',f:'🇧🇼',d:'+267'},
+      {n:'Brazil',f:'🇧🇷',d:'+55'},{n:'Brunei',f:'🇧🇳',d:'+673'},{n:'Bulgaria',f:'🇧🇬',d:'+359'},
+      {n:'Burkina Faso',f:'🇧🇫',d:'+226'},{n:'Burundi',f:'🇧🇮',d:'+257'},{n:'Cambodia',f:'🇰🇭',d:'+855'},
+      {n:'Cameroon',f:'🇨🇲',d:'+237'},{n:'Canada',f:'🇨🇦',d:'+1'},{n:'Cape Verde',f:'🇨🇻',d:'+238'},
+      {n:'Chad',f:'🇹🇩',d:'+235'},{n:'Chile',f:'🇨🇱',d:'+56'},{n:'China',f:'🇨🇳',d:'+86'},
+      {n:'Colombia',f:'🇨🇴',d:'+57'},{n:'Comoros',f:'🇰🇲',d:'+269'},{n:'Congo',f:'🇨🇬',d:'+242'},
+      {n:'Costa Rica',f:'🇨🇷',d:'+506'},{n:'Croatia',f:'🇭🇷',d:'+385'},{n:'Cuba',f:'🇨🇺',d:'+53'},
+      {n:'Cyprus',f:'🇨🇾',d:'+357'},{n:'Czech Republic',f:'🇨🇿',d:'+420'},{n:'Denmark',f:'🇩🇰',d:'+45'},
+      {n:'Djibouti',f:'🇩🇯',d:'+253'},{n:'Dominican Republic',f:'🇩🇴',d:'+1-809'},{n:'DR Congo',f:'🇨🇩',d:'+243'},
+      {n:'Ecuador',f:'🇪🇨',d:'+593'},{n:'Egypt',f:'🇪🇬',d:'+20'},{n:'El Salvador',f:'🇸🇻',d:'+503'},
+      {n:'Eritrea',f:'🇪🇷',d:'+291'},{n:'Estonia',f:'🇪🇪',d:'+372'},{n:'Eswatini',f:'🇸🇿',d:'+268'},
+      {n:'Ethiopia',f:'🇪🇹',d:'+251'},{n:'Fiji',f:'🇫🇯',d:'+679'},{n:'Finland',f:'🇫🇮',d:'+358'},
+      {n:'France',f:'🇫🇷',d:'+33'},{n:'Gabon',f:'🇬🇦',d:'+241'},{n:'Gambia',f:'🇬🇲',d:'+220'},
+      {n:'Georgia',f:'🇬🇪',d:'+995'},{n:'Germany',f:'🇩🇪',d:'+49'},{n:'Ghana',f:'🇬🇭',d:'+233'},
+      {n:'Greece',f:'🇬🇷',d:'+30'},{n:'Guatemala',f:'🇬🇹',d:'+502'},{n:'Guinea',f:'🇬🇳',d:'+224'},
+      {n:'Haiti',f:'🇭🇹',d:'+509'},{n:'Honduras',f:'🇭🇳',d:'+504'},{n:'Hungary',f:'🇭🇺',d:'+36'},
+      {n:'Iceland',f:'🇮🇸',d:'+354'},{n:'India',f:'🇮🇳',d:'+91'},{n:'Indonesia',f:'🇮🇩',d:'+62'},
+      {n:'Iran',f:'🇮🇷',d:'+98'},{n:'Iraq',f:'🇮🇶',d:'+964'},{n:'Ireland',f:'🇮🇪',d:'+353'},
+      {n:'Israel',f:'🇮🇱',d:'+972'},{n:'Italy',f:'🇮🇹',d:'+39'},{n:'Jamaica',f:'🇯🇲',d:'+1-876'},
+      {n:'Japan',f:'🇯🇵',d:'+81'},{n:'Jordan',f:'🇯🇴',d:'+962'},{n:'Kazakhstan',f:'🇰🇿',d:'+7'},
+      {n:'Kenya',f:'🇰🇪',d:'+254'},{n:'Kuwait',f:'🇰🇼',d:'+965'},{n:'Kyrgyzstan',f:'🇰🇬',d:'+996'},
+      {n:'Laos',f:'🇱🇦',d:'+856'},{n:'Latvia',f:'🇱🇻',d:'+371'},{n:'Lebanon',f:'🇱🇧',d:'+961'},
+      {n:'Liberia',f:'🇱🇷',d:'+231'},{n:'Libya',f:'🇱🇾',d:'+218'},{n:'Liechtenstein',f:'🇱🇮',d:'+423'},
+      {n:'Lithuania',f:'🇱🇹',d:'+370'},{n:'Luxembourg',f:'🇱🇺',d:'+352'},{n:'Madagascar',f:'🇲🇬',d:'+261'},
+      {n:'Malawi',f:'🇲🇼',d:'+265'},{n:'Malaysia',f:'🇲🇾',d:'+60'},{n:'Maldives',f:'🇲🇻',d:'+960'},
+      {n:'Mali',f:'🇲🇱',d:'+223'},{n:'Malta',f:'🇲🇹',d:'+356'},{n:'Mauritania',f:'🇲🇷',d:'+222'},
+      {n:'Mauritius',f:'🇲🇺',d:'+230'},{n:'Mexico',f:'🇲🇽',d:'+52'},{n:'Moldova',f:'🇲🇩',d:'+373'},
+      {n:'Monaco',f:'🇲🇨',d:'+377'},{n:'Mongolia',f:'🇲🇳',d:'+976'},{n:'Montenegro',f:'🇲🇪',d:'+382'},
+      {n:'Morocco',f:'🇲🇦',d:'+212'},{n:'Mozambique',f:'🇲🇿',d:'+258'},{n:'Myanmar',f:'🇲🇲',d:'+95'},
+      {n:'Namibia',f:'🇳🇦',d:'+264'},{n:'Nepal',f:'🇳🇵',d:'+977'},{n:'Netherlands',f:'🇳🇱',d:'+31'},
+      {n:'New Zealand',f:'🇳🇿',d:'+64'},{n:'Nicaragua',f:'🇳🇮',d:'+505'},{n:'Niger',f:'🇳🇪',d:'+227'},
+      {n:'Nigeria',f:'🇳🇬',d:'+234'},{n:'North Korea',f:'🇰🇵',d:'+850'},{n:'Norway',f:'🇳🇴',d:'+47'},
+      {n:'Oman',f:'🇴🇲',d:'+968'},{n:'Pakistan',f:'🇵🇰',d:'+92'},{n:'Palestine',f:'🇵🇸',d:'+970'},
+      {n:'Panama',f:'🇵🇦',d:'+507'},{n:'Papua New Guinea',f:'🇵🇬',d:'+675'},{n:'Paraguay',f:'🇵🇾',d:'+595'},
+      {n:'Peru',f:'🇵🇪',d:'+51'},{n:'Philippines',f:'🇵🇭',d:'+63'},{n:'Poland',f:'🇵🇱',d:'+48'},
+      {n:'Portugal',f:'🇵🇹',d:'+351'},{n:'Puerto Rico',f:'🇵🇷',d:'+1-787'},{n:'Qatar',f:'🇶🇦',d:'+974'},
+      {n:'Romania',f:'🇷🇴',d:'+40'},{n:'Russia',f:'🇷🇺',d:'+7'},{n:'Rwanda',f:'🇷🇼',d:'+250'},
+      {n:'Saudi Arabia',f:'🇸🇦',d:'+966'},{n:'Senegal',f:'🇸🇳',d:'+221'},{n:'Serbia',f:'🇷🇸',d:'+381'},
+      {n:'Sierra Leone',f:'🇸🇱',d:'+232'},{n:'Singapore',f:'🇸🇬',d:'+65'},{n:'Slovakia',f:'🇸🇰',d:'+421'},
+      {n:'Slovenia',f:'🇸🇮',d:'+386'},{n:'Somalia',f:'🇸🇴',d:'+252'},{n:'South Africa',f:'🇿🇦',d:'+27'},
+      {n:'South Korea',f:'🇰🇷',d:'+82'},{n:'South Sudan',f:'🇸🇸',d:'+211'},{n:'Spain',f:'🇪🇸',d:'+34'},
+      {n:'Sri Lanka',f:'🇱🇰',d:'+94'},{n:'Sudan',f:'🇸🇩',d:'+249'},{n:'Sweden',f:'🇸🇪',d:'+46'},
+      {n:'Switzerland',f:'🇨🇭',d:'+41'},{n:'Syria',f:'🇸🇾',d:'+963'},{n:'Taiwan',f:'🇹🇼',d:'+886'},
+      {n:'Tajikistan',f:'🇹🇯',d:'+992'},{n:'Tanzania',f:'🇹🇿',d:'+255'},{n:'Thailand',f:'🇹🇭',d:'+66'},
+      {n:'Togo',f:'🇹🇬',d:'+228'},{n:'Trinidad & Tobago',f:'🇹🇹',d:'+1-868'},{n:'Tunisia',f:'🇹🇳',d:'+216'},
+      {n:'Turkey',f:'🇹🇷',d:'+90'},{n:'Turkmenistan',f:'🇹🇲',d:'+993'},{n:'Uganda',f:'🇺🇬',d:'+256'},
+      {n:'Ukraine',f:'🇺🇦',d:'+380'},{n:'UAE',f:'🇦🇪',d:'+971'},{n:'United Kingdom',f:'🇬🇧',d:'+44'},
+      {n:'United States',f:'🇺🇸',d:'+1'},{n:'Uruguay',f:'🇺🇾',d:'+598'},{n:'Uzbekistan',f:'🇺🇿',d:'+998'},
+      {n:'Venezuela',f:'🇻🇪',d:'+58'},{n:'Vietnam',f:'🇻🇳',d:'+84'},{n:'Yemen',f:'🇾🇪',d:'+967'},
+      {n:'Zambia',f:'🇿🇲',d:'+260'},{n:'Zimbabwe',f:'🇿🇼',d:'+263'}
+    ];
+
+    (function() {
+      const ccSelect = document.getElementById('ccSelect');
+      const ccBtn    = document.getElementById('ccBtn');
+      const ccDrop   = document.getElementById('ccDrop');
+      const ccSearch = document.getElementById('ccSearch');
+      const ccList   = document.getElementById('ccList');
+      const ccFlag   = document.getElementById('ccFlag');
+      const ccCode   = document.getElementById('ccCode');
+      let selected   = COUNTRIES.find(c => c.n === 'United States');
+
+      function renderList(filter) {
+        const q = (filter || '').toLowerCase();
+        const filtered = q
+          ? COUNTRIES.filter(c => c.n.toLowerCase().includes(q) || c.d.includes(q))
+          : COUNTRIES;
+        ccList.innerHTML = filtered.map(c =>
+          `<li data-dial="${c.d}" data-flag="${c.f}" data-name="${c.n}" class="${c.n===selected.n?'cc-active':''}">
+            <span>${c.f}</span><span>${c.n}</span><span class="cc-item-dial">${c.d}</span>
+          </li>`
+        ).join('');
+      }
+
+      function openDrop() {
+        ccSelect.classList.add('open');
+        ccBtn.setAttribute('aria-expanded', 'true');
+        ccSearch.value = '';
+        renderList('');
+        // flip upward if not enough room below
+        const rect = ccSelect.getBoundingClientRect();
+        ccDrop.style.bottom = (window.innerHeight - rect.bottom < 260) ? 'calc(100% + 6px)' : 'auto';
+        ccDrop.style.top    = (window.innerHeight - rect.bottom < 260) ? 'auto' : 'calc(100% + 6px)';
+        setTimeout(() => ccSearch.focus(), 50);
+      }
+
+      function closeDrop() {
+        ccSelect.classList.remove('open');
+        ccBtn.setAttribute('aria-expanded', 'false');
+      }
+
+      function select(c) {
+        selected = c;
+        ccFlag.textContent = c.f;
+        ccCode.textContent = c.d;
+        closeDrop();
+      }
+
+      renderList('');
+      ccBtn.addEventListener('click', () => ccSelect.classList.contains('open') ? closeDrop() : openDrop());
+      ccSearch.addEventListener('input', () => renderList(ccSearch.value));
+      ccList.addEventListener('click', e => {
+        const li = e.target.closest('li');
+        if (!li) return;
+        select({ n: li.dataset.name, f: li.dataset.flag, d: li.dataset.dial });
+      });
+      document.addEventListener('click', e => {
+        if (!ccSelect.contains(e.target)) closeDrop();
+      });
+
+      // Expose selected dial for form submit
+      window._getDialCode = () => selected.d;
+    })();
+
+    // ── Form submit ──────────────────────────────────────────────
     const form = document.getElementById('applyForm');
     const msg  = document.getElementById('successMsg');
     const FORM_ENDPOINT = 'https://formspree.io/f/xykneybp';
     form.addEventListener('submit', async e => {
       e.preventDefault();
+      // Combine country code + phone number into hidden field
+      const phone = document.getElementById('wp').value.trim();
+      document.getElementById('wpFull').value = window._getDialCode() + ' ' + phone;
       const btn = form.querySelector('.form-btn');
       btn.textContent = 'Enviando...';
       btn.disabled = true;
