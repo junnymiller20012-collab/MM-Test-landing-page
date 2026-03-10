@@ -1528,15 +1528,32 @@
       wm.style.transform = `translateY(calc(-50% + ${window.scrollY * .28}px))`;
     }, { passive: true });
 
-    // Form submit
+    // Form submit → Formspree
     const form = document.getElementById('applyForm');
     const msg  = document.getElementById('successMsg');
-    form.addEventListener('submit', e => {
+    const FORM_ENDPOINT = 'https://formspree.io/f/xykneybp';
+    form.addEventListener('submit', async e => {
       e.preventDefault();
       const btn = form.querySelector('.form-btn');
       btn.textContent = 'Enviando...';
       btn.disabled = true;
-      setTimeout(() => { form.style.display = 'none'; msg.classList.add('show'); }, 1100);
+      try {
+        const res = await fetch(FORM_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Accept': 'application/json' },
+          body: new FormData(form)
+        });
+        if (res.ok) {
+          form.style.display = 'none';
+          msg.classList.add('show');
+        } else {
+          btn.textContent = 'Error — intenta de nuevo';
+          btn.disabled = false;
+        }
+      } catch {
+        btn.textContent = 'Error — intenta de nuevo';
+        btn.disabled = false;
+      }
     });
 
     // ── Hamburger menu ──
